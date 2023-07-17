@@ -1,0 +1,7 @@
+build/
+.cache/
+.vscode/
+*.jpg
+*.png
+metal-cpp/
+metal-cpp-extensions/
