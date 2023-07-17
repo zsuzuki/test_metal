@@ -102,8 +102,8 @@ TextDraw::render(MTL::RenderCommandEncoder* enc)
     struct V2D
     {
         simd::float2 p;
-        simd::float4 c;
         simd::float2 t;
+        simd::float4 c;
     };
 
     for (auto& tdb : impl_->drawList_)

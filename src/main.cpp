@@ -286,6 +286,24 @@ Renderer::draw(MTK::View* pView)
     _textdraw.render(pEnc);
     _textdraw.clear();
 
+    for (int l = 0; l < 200; l++)
+    {
+        float theta = ((float)(cnt + l % 360) / 360) * M_PI * 2.0f;
+        float x1    = sinf(theta) * 400 + 800;
+        float y1    = cosf(theta) * 400 + 500;
+        float x2    = 800;
+        float y2    = 500;
+        float r     = fabs(sinf(theta));
+        float g     = fabs(cosf(theta));
+        float b     = fabs(sinf(theta + M_PI));
+        _render2d.setDrawColor(r, g, b, 1.0f);
+        _render2d.drawLine(x1, y1, x2, y2);
+    }
+    _render2d.setDrawColor(0.0f, 1.0f, 0.0f, 1.0f);
+    _render2d.drawRect(100, 100, 1500, 900);
+    _render2d.render(pEnc);
+    _render2d.clearDraw();
+
     pEnc->endEncoding();
     pCmd->presentDrawable(pView->currentDrawable());
     pCmd->commit();

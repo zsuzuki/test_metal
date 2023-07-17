@@ -4,7 +4,6 @@ using namespace metal;
 struct VertexData2D
 {
     float2 position;
-    float2 texcoord;
     float4 color;    
 };
 
@@ -17,7 +16,6 @@ struct p2f
 {
     float4 pos [[position]];
     half4 color;
-    float2 texcoord;
 };
 
 vertex p2f vert2d(const device VertexData2D* vertexArray [[buffer(0)]],const device ScreenData* screenData [[buffer(1)]], unsigned int vID [[vertex_id]])
@@ -30,16 +28,13 @@ vertex p2f vert2d(const device VertexData2D* vertexArray [[buffer(0)]],const dev
     p2f out;
     out.pos      = float4(pos / screenData->size * 2.0 - 1.0, 0.0, 1.0);
     out.color    = half4(vd2d.color.rgba);
-    out.texcoord = vd2d.texcoord.xy;
 
     return out;
 }
 
-fragment half4 frag2d(p2f in [[stage_in]], texture2d<half, access::sample> tex [[texture(0)]] )
+fragment half4 frag2d(p2f in [[stage_in]])
 {
-    constexpr sampler s( address::repeat, filter::linear );
-    half4 texel = tex.sample( s, in.texcoord ).rgba;
-    return in.color * texel;
+    return in.color;
 }
 
 //

@@ -28,4 +28,9 @@ class Simple2D
     void finalize();
 
     void setupRender(MTL::RenderCommandEncoder* enc);
+    void render(MTL::RenderCommandEncoder* enc);
+    void clearDraw();
+    void setDrawColor(float red, float green, float blue, float alpha);
+    void drawLine(float x1, float y1, float x2, float y2);
+    void drawRect(float x1, float y1, float x2, float y2);
 };
