@@ -26,10 +26,12 @@
 #include "metalapp/textdraw.h"
 #include "metalapp/texture.h"
 #include "metalapp/vertex.h"
+#include <cmath>
 #include <iostream>
 #include <matrix.h>
 #include <memory>
 #include <simd/simd.h>
+#include <simd/vector_make.h>
 
 static constexpr size_t kInstanceRows      = 10;
 static constexpr size_t kInstanceColumns   = 10;
@@ -201,7 +203,7 @@ Renderer::draw(MTK::View* pView)
       dispatch_semaphore_signal(pRenderer->_semaphore);
     });
 
-    _angle += 0.002f;
+    _angle += 0.001f;
 
     const float scl           = 0.5f;
     auto*       pInstanceData = reinterpret_cast<shader_types::InstanceData*>(pInstanceDataBuffer->contents());
@@ -251,6 +253,16 @@ Renderer::draw(MTK::View* pView)
         ix += 1;
     }
     pInstanceDataBuffer->didModifyRange(NS::Range::Make(0, pInstanceDataBuffer->length()));
+
+    static int tcnt    = 0;
+    auto       targetX = sin((tcnt / 360.0) * M_PI * 2.0) * 8.0f;
+    auto       targetY = cos((tcnt / 360.0) * M_PI * 2.0) * 8.0f;
+    auto       posZ    = sin((tcnt / 360.0) * M_PI * 2.0) * 2.0f;
+    tcnt               = (tcnt + 3) % 360;
+    auto targetPos     = simd::make_float3(targetX, targetY, 20.0f);
+    _camera.setTargetPosition(targetPos);
+    auto eyePos = simd_make_float3(0.0f, 0.0f, posZ - 1.0f);
+    _camera.setEyePosition(eyePos);
 
     // Update camera state:
     _camera.update(_frame);

@@ -12,9 +12,13 @@
 #include <algorithm>
 #include <iostream>
 #include <matrix.h>
+#include <simd/geometry.h>
+#include <simd/matrix.h>
 #include <simd/matrix_types.h>
 #include <simd/quaternion.h>
 #include <simd/simd.h>
+#include <simd/vector_make.h>
+#include <simd/vector_types.h>
 #include <vector>
 
 namespace
@@ -38,6 +42,10 @@ struct Camera::Impl
     simd::float4x4            perspective_;
     simd::float4x4            view_;
     MTL::Buffer*              readBuffer_;
+
+    simd::float3 eyePosition_;
+    simd::float3 targetPosition_;
+    simd::float3 upVector_;
 };
 
 //
@@ -57,17 +65,35 @@ Camera::initialize(MTL::Device* dev, int keepFrame)
     {
         buff = dev->newBuffer(sizeof(CameraData), MTL::ResourceStorageModeManaged);
     }
+    impl_->view_           = math::makeIdentity();
+    impl_->eyePosition_    = simd_make_float3(0.0f, 0.0f, 10.0f);
+    impl_->targetPosition_ = simd_make_float3(0.0f, 0.0f, 0.0f);
+    impl_->upVector_       = simd_make_float3(0.0f, 1.0f, 0.0f);
 }
 
 //
 void
 Camera::update(int frameIndex)
 {
+    auto& eyePos    = impl_->eyePosition_;
+    auto  targetVec = impl_->targetPosition_ - eyePos;
+    auto  frontVec  = simd_normalize(targetVec);
+    auto  upVec     = simd_normalize(impl_->upVector_);
+    auto  sideVec   = simd_normalize(simd_cross(upVec, frontVec));
+    upVec           = simd_normalize(simd_cross(frontVec, sideVec));
+
+    simd::float4x4 viewMtx;
+    viewMtx.columns[0] = simd_make_float4(sideVec[0], sideVec[1], sideVec[2], 0.0f);
+    viewMtx.columns[1] = simd_make_float4(upVec[0], upVec[1], upVec[2], 0.0f);
+    viewMtx.columns[2] = simd_make_float4(frontVec[0], frontVec[1], frontVec[2], 0.0f);
+    viewMtx.columns[3] = simd_make_float4(eyePos[0], eyePos[1], eyePos[2], 1.0f);
+    viewMtx.columns[3] = simd_mul(viewMtx, viewMtx.columns[3]);
+
     auto* buffer = impl_->buffers_[frameIndex];
 
     auto* camera                 = reinterpret_cast<CameraData*>(buffer->contents());
     camera->perspectiveTransform = impl_->perspective_;
-    camera->worldTransform       = math::makeIdentity();
+    camera->worldTransform       = viewMtx;
     camera->worldNormalTransform = math::discardTranslation(camera->worldTransform);
 
     buffer->didModifyRange(NS::Range::Make(0, sizeof(CameraData)));
@@ -93,18 +119,21 @@ Camera::release()
 void
 Camera::setEyePosition(simd::float3 eye)
 {
+    impl_->eyePosition_ = eye;
 }
 
 //
 void
 Camera::setTargetPosition(simd::float3 tgt)
 {
+    impl_->targetPosition_ = tgt;
 }
 
 //
 void
 Camera::setUpVector(simd::float3 up)
 {
+    impl_->upVector_ = up;
 }
 
 //
