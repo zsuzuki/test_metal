@@ -42,8 +42,9 @@ struct TextDraw::Impl
         auto& tdb        = drawList_.back();
         strdesc_.message = msg;
         tdb.tex.buildByString(device_, strdesc_);
-        tdb.x = x;
-        tdb.y = y;
+        tdb.x   = x;
+        tdb.y   = y;
+        tdb.col = color_;
     }
 };
 
@@ -114,7 +115,7 @@ TextDraw::render(MTL::RenderCommandEncoder* enc)
         float by = ty + tdb.tex.getHeight();
 
         std::array<V2D, 4> varray;
-        varray[0].c = varray[1].c = varray[2].c = varray[3].c = impl_->color_;
+        varray[0].c = varray[1].c = varray[2].c = varray[3].c = tdb.col;
 
         varray[0].p[0] = lx;
         varray[0].p[1] = ty;
