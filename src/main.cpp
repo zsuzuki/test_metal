@@ -27,11 +27,13 @@
 #include "metalapp/texture.h"
 #include "metalapp/vertex.h"
 #include <cmath>
+#include <context.h>
 #include <iostream>
+#include <list>
 #include <matrix.h>
 #include <memory>
 #include <simd/simd.h>
-#include <simd/vector_make.h>
+#include <testloop.h>
 
 static constexpr size_t kInstanceRows      = 10;
 static constexpr size_t kInstanceColumns   = 10;
@@ -40,6 +42,53 @@ static constexpr size_t kNumInstances      = (kInstanceRows * kInstanceColumns *
 static constexpr size_t kMaxFramesInFlight = 3;
 static constexpr float  ScreenWidth        = 1600.0f;
 static constexpr float  ScreenHeight       = 1000.0f;
+
+//
+struct TextBuffer
+{
+    std::string  message;
+    simd::float2 pos;
+    simd::float4 color;
+};
+
+//
+//
+//
+class ContextImpl : public Context
+{
+    Camera&               camera_;
+    std::list<TextBuffer> textBuffer_;
+    simd::float4          drawColor_;
+
+  public:
+    ContextImpl(Camera& cam, TextDraw& tdraw) : camera_(cam) { drawColor_ = simd_make_float4(1.0f, 1.0f, 1.0f, 1.0f); }
+    ~ContextImpl() override = default;
+
+    //
+    CameraInterface& GetCamera() override { return camera_; }
+    //
+    void SetDrawColor(float r, float g, float b, float a = 1.0f) override { drawColor_ = simd_make_float4(r, g, b, a); }
+    //
+    void Print(float x, float y, std::string msg) override
+    {
+        TextBuffer buff;
+        buff.message = msg;
+        buff.pos     = simd_make_float2(x, y);
+        buff.color   = drawColor_;
+        textBuffer_.emplace_back(buff);
+    }
+
+    //
+    void draw2d(Simple2D&, TextDraw& textDraw)
+    {
+        for (const auto& td : textBuffer_)
+        {
+            textDraw.setColor(td.color[0], td.color[1], td.color[2], td.color[3]);
+            textDraw.print(td.pos[0], td.pos[1], td.message.c_str());
+        }
+        textBuffer_.clear();
+    }
+};
 
 //
 //
@@ -254,15 +303,8 @@ Renderer::draw(MTK::View* pView)
     }
     pInstanceDataBuffer->didModifyRange(NS::Range::Make(0, pInstanceDataBuffer->length()));
 
-    static int tcnt    = 0;
-    auto       targetX = sin((tcnt / 360.0) * M_PI * 2.0) * 8.0f;
-    auto       targetY = cos((tcnt / 360.0) * M_PI * 2.0) * 8.0f;
-    auto       posZ    = sin((tcnt / 360.0) * M_PI * 2.0) * 2.0f;
-    tcnt               = (tcnt + 3) % 360;
-    auto targetPos     = simd::make_float3(targetX, targetY, 20.0f);
-    _camera.setTargetPosition(targetPos);
-    auto eyePos = simd_make_float3(0.0f, 0.0f, posZ - 1.0f);
-    _camera.setEyePosition(eyePos);
+    ContextImpl ctx{_camera, _textdraw};
+    TestLoop::Update(ctx);
 
     // Update camera state:
     _camera.update(_frame);
@@ -292,12 +334,11 @@ Renderer::draw(MTK::View* pView)
 
     _render2d.setupRender(pEnc);
     _textdraw.setSize(40.0f);
-    _textdraw.print(200, 400, "こんにちは世界");
-    static int cnt = 0;
-    _textdraw.printf(400, 600, "明日は晴れだ: %d", cnt++);
+    ctx.draw2d(_render2d, _textdraw);
     _textdraw.render(pEnc);
     _textdraw.clear();
 
+    static int cnt = 0;
     for (int l = 0; l < 200; l++)
     {
         float theta = ((float)(cnt + l % 360) / 360) * M_PI * 2.0f;

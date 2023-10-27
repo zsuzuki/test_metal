@@ -27,6 +27,8 @@ set(src
     src/metalapp/simple2d.cpp
     src/metalapp/impl.cpp
     src/metalapp/app.cpp
+    src/gamepad.mm
+    src/testloop.cpp
     src/main.cpp
 )
 
@@ -42,5 +44,6 @@ target_link_libraries(${PROJECT_NAME}
     "-framework CoreGraphics"
     "-framework CoreText"
     "-framework MetalKit"
+    "-framework GameController"
     JPEG::JPEG
     ${libs})
