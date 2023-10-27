@@ -57,11 +57,15 @@ struct TextBuffer
 class ContextImpl : public Context
 {
     Camera&               camera_;
+    Simple2D&             render2d_;
     std::list<TextBuffer> textBuffer_;
     simd::float4          drawColor_;
 
   public:
-    ContextImpl(Camera& cam, TextDraw& tdraw) : camera_(cam) { drawColor_ = simd_make_float4(1.0f, 1.0f, 1.0f, 1.0f); }
+    ContextImpl(Camera& cam, Simple2D& r2d) : camera_(cam), render2d_(r2d)
+    {
+        drawColor_ = simd_make_float4(1.0f, 1.0f, 1.0f, 1.0f);
+    }
     ~ContextImpl() override = default;
 
     //
@@ -77,9 +81,15 @@ class ContextImpl : public Context
         buff.color   = drawColor_;
         textBuffer_.emplace_back(buff);
     }
+    //
+    void DrawLine(float x1, float y1, float x2, float y2) override
+    {
+        render2d_.setDrawColor(drawColor_[0], drawColor_[1], drawColor_[2], drawColor_[3]);
+        render2d_.drawLine(x1, y1, x2, y2);
+    }
 
     //
-    void draw2d(Simple2D&, TextDraw& textDraw)
+    void draw2d(TextDraw& textDraw)
     {
         for (const auto& td : textBuffer_)
         {
@@ -303,7 +313,7 @@ Renderer::draw(MTK::View* pView)
     }
     pInstanceDataBuffer->didModifyRange(NS::Range::Make(0, pInstanceDataBuffer->length()));
 
-    ContextImpl ctx{_camera, _textdraw};
+    ContextImpl ctx{_camera, _render2d};
     TestLoop::Update(ctx);
 
     // Update camera state:
@@ -333,8 +343,8 @@ Renderer::draw(MTK::View* pView)
                                 MTL::IndexType::IndexTypeUInt16, _vertex.getIndexBuffer(), 0, kNumInstances);
 
     _render2d.setupRender(pEnc);
-    _textdraw.setSize(40.0f);
-    ctx.draw2d(_render2d, _textdraw);
+    _textdraw.setSize(32.0f);
+    ctx.draw2d(_textdraw);
     _textdraw.render(pEnc);
     _textdraw.clear();
 

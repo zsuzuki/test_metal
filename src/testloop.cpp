@@ -47,6 +47,7 @@ Update(Context& context)
         context.SetDrawColor(1.0f, 0.8f, 0.1f);
         context.Print(600, 150, "Pad Disable");
     }
+    context.DrawLine(100, 100, 500, 500);
 
     context.SetDrawColor(1.0f, 1.0f, 1.0f);
     context.Print(600, 100, "TestLoop");
