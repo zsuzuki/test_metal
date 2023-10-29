@@ -25,6 +25,7 @@ set(src
     src/metalapp/camera.cpp
     src/metalapp/textdraw.cpp
     src/metalapp/simple2d.cpp
+    src/metalapp/simple3d.cpp
     src/metalapp/impl.cpp
     src/metalapp/app.cpp
     src/gamepad.mm

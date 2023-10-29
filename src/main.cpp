@@ -23,6 +23,7 @@
 #include "metalapp/camera.h"
 #include "metalapp/shaderset.h"
 #include "metalapp/simple2d.h"
+#include "metalapp/simple3d.h"
 #include "metalapp/textdraw.h"
 #include "metalapp/texture.h"
 #include "metalapp/vertex.h"
@@ -33,6 +34,7 @@
 #include <matrix.h>
 #include <memory>
 #include <simd/simd.h>
+#include <simd/vector_types.h>
 #include <testloop.h>
 
 static constexpr size_t kInstanceRows      = 10;
@@ -58,11 +60,12 @@ class ContextImpl : public Context
 {
     Camera&               camera_;
     Simple2D&             render2d_;
+    Simple3D&             render3d_;
     std::list<TextBuffer> textBuffer_;
     simd::float4          drawColor_;
 
   public:
-    ContextImpl(Camera& cam, Simple2D& r2d) : camera_(cam), render2d_(r2d)
+    ContextImpl(Camera& cam, Simple2D& r2d, Simple3D& r3d) : camera_(cam), render2d_(r2d), render3d_(r3d)
     {
         drawColor_ = simd_make_float4(1.0f, 1.0f, 1.0f, 1.0f);
     }
@@ -82,10 +85,43 @@ class ContextImpl : public Context
         textBuffer_.emplace_back(buff);
     }
     //
-    void DrawLine(float x1, float y1, float x2, float y2) override
+    void DrawLine2D(simd::float2 from, simd::float2 to) override
     {
         render2d_.setDrawColor(drawColor_[0], drawColor_[1], drawColor_[2], drawColor_[3]);
-        render2d_.drawLine(x1, y1, x2, y2);
+        render2d_.drawLine(from[0], from[1], to[0], to[1]);
+    }
+    //
+    void DrawRect2D(simd::float2 pos, simd::float2 size) override
+    {
+        size[0] += size[0] < 0 ? 1 : -1;
+        size[1] += size[1] < 0 ? 1 : -1;
+        size += pos;
+        render2d_.setDrawColor(drawColor_[0], drawColor_[1], drawColor_[2], drawColor_[3]);
+        render2d_.drawRect(pos[0], pos[1], size[0], size[1]);
+    }
+    //
+    void DrawLine3D(simd::float3 from, simd::float3 to) override
+    {
+        render3d_.setDrawColor(drawColor_[0], drawColor_[1], drawColor_[2], drawColor_[3]);
+        render3d_.drawLine(from, to);
+    }
+    //
+    void DrawRect3D(simd::float3 p0, simd::float3 p1, simd::float3 p2, simd::float3 p3) override
+    {
+        render3d_.setDrawColor(drawColor_[0], drawColor_[1], drawColor_[2], drawColor_[3]);
+        render3d_.drawRect(p0, p1, p2, p3);
+    }
+    //
+    void DrawTriangle3D(simd::float3 v0, simd::float3 v1, simd::float3 v2) override
+    {
+        render3d_.setDrawColor(drawColor_[0], drawColor_[1], drawColor_[2], drawColor_[3]);
+        render3d_.drawTriangle(v0, v1, v2);
+    }
+    //
+    void DrawPlane3D(simd::float3 v0, simd::float3 v1, simd::float3 v2, simd::float3 v3) override
+    {
+        render3d_.setDrawColor(drawColor_[0], drawColor_[1], drawColor_[2], drawColor_[3]);
+        render3d_.drawPlane(v0, v1, v2, v3);
     }
 
     //
@@ -129,6 +165,7 @@ class Renderer : public DelegateLoop
     Camera                  _camera;
     TextDraw                _textdraw;
     Simple2D                _render2d;
+    Simple3D                _render3d;
     float                   _angle = 0.0f;
     int                     _frame = 0;
     dispatch_semaphore_t    _semaphore;
@@ -156,6 +193,7 @@ Renderer::initialize(MTL::Device* dev)
 
     _textdraw.initialize(_pDevice);
     _render2d.initialize(_pDevice, ScreenWidth, ScreenHeight);
+    _render3d.initialize(_pDevice);
 
     _semaphore = dispatch_semaphore_create(Renderer::kMaxFramesInFlight);
 }
@@ -174,6 +212,7 @@ Renderer::finalize()
     _texture.release();
     _shaderSet.release();
     _render2d.finalize();
+    _render3d.finalize();
     _pDevice->release();
 }
 
@@ -313,7 +352,7 @@ Renderer::draw(MTK::View* pView)
     }
     pInstanceDataBuffer->didModifyRange(NS::Range::Make(0, pInstanceDataBuffer->length()));
 
-    ContextImpl ctx{_camera, _render2d};
+    ContextImpl ctx{_camera, _render2d, _render3d};
     TestLoop::Update(ctx);
 
     // Update camera state:
@@ -341,31 +380,17 @@ Renderer::draw(MTK::View* pView)
     pEnc->setFragmentTexture(_texture.get(), TextureId0);
     pEnc->drawIndexedPrimitives(MTL::PrimitiveType::PrimitiveTypeTriangle, _vertex.getIndexCount(),
                                 MTL::IndexType::IndexTypeUInt16, _vertex.getIndexBuffer(), 0, kNumInstances);
+    _render3d.render(pEnc);
 
     _render2d.setupRender(pEnc);
     _textdraw.setSize(32.0f);
     ctx.draw2d(_textdraw);
     _textdraw.render(pEnc);
-    _textdraw.clear();
-
-    static int cnt = 0;
-    for (int l = 0; l < 200; l++)
-    {
-        float theta = ((float)(cnt + l % 360) / 360) * M_PI * 2.0f;
-        float x1    = sinf(theta) * 400 + 800;
-        float y1    = cosf(theta) * 400 + 500;
-        float x2    = 800;
-        float y2    = 500;
-        float r     = fabs(sinf(theta));
-        float g     = fabs(cosf(theta));
-        float b     = fabs(sinf(theta + M_PI));
-        _render2d.setDrawColor(r, g, b, 1.0f);
-        _render2d.drawLine(x1, y1, x2, y2);
-    }
-    _render2d.setDrawColor(0.0f, 1.0f, 0.0f, 1.0f);
-    _render2d.drawRect(100, 100, 1500, 900);
     _render2d.render(pEnc);
+
+    _textdraw.clear();
     _render2d.clearDraw();
+    _render3d.clearDraw();
 
     pEnc->endEncoding();
     pCmd->presentDrawable(pView->currentDrawable());

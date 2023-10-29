@@ -13,7 +13,6 @@
 #include <iostream>
 #include <memory>
 #include <simd/simd.h>
-#include <simd/vector_types.h>
 #include <vector>
 
 namespace
